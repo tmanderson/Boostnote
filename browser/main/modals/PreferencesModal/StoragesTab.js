@@ -1,10 +1,12 @@
 import PropTypes from 'prop-types'
 import React from 'react'
+import _ from 'lodash'
 import CSSModules from 'browser/lib/CSSModules'
 import styles from './StoragesTab.styl'
 import dataApi from 'browser/main/lib/dataApi'
 import StorageItem from './StorageItem'
 import i18n from 'browser/lib/i18n'
+import { adapters as fileSystemAdapters } from '../../lib/dataApi/adapter'
 
 const electron = require('electron')
 const { shell, remote } = electron
@@ -61,6 +63,7 @@ class StoragesTab extends React.Component {
     const { data, boundingBox } = this.props
 
     if (!boundingBox) { return null }
+
     const storageList = data.storageMap.map((storage) => {
       return <StorageItem
         key={storage.key}
@@ -68,6 +71,7 @@ class StoragesTab extends React.Component {
         hostBoundingBox={boundingBox}
       />
     })
+
     return (
       <div styleName='list'>
         <div styleName='header'>{i18n.__('Storage Locations')}</div>
@@ -105,19 +109,56 @@ class StoragesTab extends React.Component {
 
   handleAddStorageChange (e) {
     const { newStorage } = this.state
-    newStorage.name = this.refs.addStorageName.value
-    newStorage.path = this.refs.addStoragePath.value
+
+    if (/setting/.test(e.target.name)) {
+      Object.assign(newStorage.settings, {
+        [e.target.name.replace('setting-', '')]: e.target.value
+      })
+    } else {
+      Object.assign(newStorage, { [e.target.name]: e.target.value })
+    }
+
     this.setState({
       newStorage
     })
   }
 
+  handleAddStorageType (e) {
+    const { newStorage } = this.state
+    newStorage.type = e.target.value
+    const adapter = fileSystemAdapters[e.target.value]
+
+    this.setState({
+      // Clone the adapter config, and unset the settings values
+      newStorage: Object.assign(
+        _.cloneDeep(_.omit(adapter, 'init')), // omit the `init` function for adapter
+        {
+          settings: Object.entries(adapter.settings || {})
+            .reduce((settings, [key, setting]) =>
+              Object.assign(settings, {
+                [key]: setting.defaultValue || null
+              }), {})
+        }
+      )
+    })
+  }
+
   handleAddStorageCreateButton (e) {
+    const adapter = fileSystemAdapters[this.state.newStorage.type]
+
+    const requiredValues = Object.entries(this.state.newStorage.settings)
+      .filter(([setting, value]) => console.log(setting, value) ||
+        adapter.settings[setting].required && !value
+      )
+    // If required values haven't been filled in, don't create storage
+    if (requiredValues.length) {
+      return requiredValues.forEach(([key, value]) =>
+        console.warn(`The field '${key}' is required`)
+      )
+    }
+
     dataApi
-      .addStorage({
-        name: this.state.newStorage.name,
-        path: this.state.newStorage.path
-      })
+      .addStorage(this.state.newStorage)
       .then((data) => {
         const { dispatch } = this.props
         dispatch({
@@ -137,14 +178,71 @@ class StoragesTab extends React.Component {
     })
   }
 
+  renderInputForType (type, name, value) {
+    return (
+      <input
+        styleName='addStorage-body-section-name-input'
+        type={type}
+        name={`setting-${name}`}
+        value={value}
+        onChange={(e) => this.handleAddStorageChange(e)}
+      />
+    )
+  }
+
+  renderFileSystemAdapterSettings (adapter) {
+    return Object.entries(adapter.settings)
+      .map(([name, setting]) => (
+        <div key={`${adapter.type}-${name}`} styleName='addStorage-body-section'>
+          <div styleName='addStorage-body-section-label'>
+            {i18n.__(setting.label)}
+          </div>
+          <div styleName='addStorage-body-section-name'>
+            {this.renderInputForType(
+              setting.type,
+              name,
+              _.get(this.state.newStorage.settings, name)
+            )}
+          </div>
+        </div>
+      ))
+  }
+
+  renderFileSystemConfiguration () {
+    return (
+      <div styleName='addStorage-body-section'>
+        <div styleName='addStorage-body-section-label'>{i18n.__('Location')}
+        </div>
+        <div styleName='addStorage-body-section-path'>
+          <input styleName='addStorage-body-section-path-input'
+            name='path'
+            placeholder={i18n.__('Select Folder')}
+            value={this.state.newStorage.path}
+            onChange={(e) => this.handleAddStorageChange(e)}
+          />
+          <button styleName='addStorage-body-section-path-button'
+            onClick={(e) => this.handleAddStorageBrowseButtonClick(e)}
+          >
+            ...
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  renderStorageSettings (storageType) {
+    if (storageType !== fileSystemAdapters.FILESYSTEM.type) {
+      return this.renderFileSystemAdapterSettings(fileSystemAdapters[storageType])
+    }
+
+    return this.renderFileSystemConfiguration()
+  }
+
   renderAddStorage () {
     return (
       <div styleName='addStorage'>
-
         <div styleName='addStorage-header'>{i18n.__('Add Storage')}</div>
-
         <div styleName='addStorage-body'>
-
           <div styleName='addStorage-body-section'>
             <div styleName='addStorage-body-section-label'>
               {i18n.__('Name')}
@@ -152,6 +250,7 @@ class StoragesTab extends React.Component {
             <div styleName='addStorage-body-section-name'>
               <input styleName='addStorage-body-section-name-input'
                 ref='addStorageName'
+                name='name'
                 value={this.state.newStorage.name}
                 onChange={(e) => this.handleAddStorageChange(e)}
               />
@@ -163,9 +262,16 @@ class StoragesTab extends React.Component {
             <div styleName='addStorage-body-section-type'>
               <select styleName='addStorage-body-section-type-select'
                 value={this.state.newStorage.type}
+                onChange={(e) => this.handleAddStorageType(e)}
                 readOnly
               >
-                <option value='FILESYSTEM'>{i18n.__('File System')}</option>
+                {Object.entries(fileSystemAdapters).map(function ([type, adapter]) {
+                  return (
+                    <option key={`option-${type}`} value={type}>
+                      {i18n.__(adapter.label)}
+                    </option>
+                  )
+                })}
               </select>
               <div styleName='addStorage-body-section-type-description'>
                 {i18n.__('Setting up 3rd-party cloud storage integration:')}{' '}
@@ -175,29 +281,14 @@ class StoragesTab extends React.Component {
               </div>
             </div>
           </div>
-
-          <div styleName='addStorage-body-section'>
-            <div styleName='addStorage-body-section-label'>{i18n.__('Location')}
-            </div>
-            <div styleName='addStorage-body-section-path'>
-              <input styleName='addStorage-body-section-path-input'
-                ref='addStoragePath'
-                placeholder={i18n.__('Select Folder')}
-                value={this.state.newStorage.path}
-                onChange={(e) => this.handleAddStorageChange(e)}
-              />
-              <button styleName='addStorage-body-section-path-button'
-                onClick={(e) => this.handleAddStorageBrowseButtonClick(e)}
-              >
-                ...
-              </button>
-            </div>
-          </div>
-
+          {this.renderStorageSettings(_.get(this.state.newStorage, 'type'))}
           <div styleName='addStorage-body-control'>
-            <button styleName='addStorage-body-control-createButton'
+            <button
+              styleName='addStorage-body-control-createButton'
               onClick={(e) => this.handleAddStorageCreateButton(e)}
-            >{i18n.__('Add')}</button>
+            >
+              {i18n.__('Add')}
+            </button>
             <button styleName='addStorage-body-control-cancelButton'
               onClick={(e) => this.handleAddStorageCancelButton(e)}
             >{i18n.__('Cancel')}</button>

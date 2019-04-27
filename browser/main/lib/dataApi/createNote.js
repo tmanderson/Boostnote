@@ -3,8 +3,8 @@ const resolveStorageData = require('./resolveStorageData')
 const _ = require('lodash')
 const keygen = require('browser/lib/keygen')
 const path = require('path')
-const CSON = require('@rokt33r/season')
 const { findStorage } = require('browser/lib/findStorage')
+const fileSystem = require('./adapter')
 
 function validateInput (input) {
   if (!_.isArray(input.tags)) input.tags = []
@@ -34,8 +34,16 @@ function validateInput (input) {
   }
 }
 
+function generateUniqueKey (fs, storage) {
+  const key = keygen(true)
+
+  return fs.statSync(path.join(storage.path || '', 'notes', key + '.cson'))
+    .then(() => generateUniqueKey(fs, storage), () => key)
+}
+
 function createNote (storageKey, input) {
   let targetStorage
+
   try {
     if (input == null) throw new Error('No input found.')
     input = Object.assign({}, input)
@@ -46,6 +54,8 @@ function createNote (storageKey, input) {
     return Promise.reject(e)
   }
 
+  const fs = fileSystem.getStorageAdapter(targetStorage)
+
   return resolveStorageData(targetStorage)
     .then(function checkFolderExists (storage) {
       if (_.find(storage.folders, {key: input.folder}) == null) {
@@ -53,21 +63,8 @@ function createNote (storageKey, input) {
       }
       return storage
     })
-    .then(function saveNote (storage) {
-      let key = keygen(true)
-      let isUnique = false
-      while (!isUnique) {
-        try {
-          sander.statSync(path.join(storage.path, 'notes', key + '.cson'))
-          key = keygen(true)
-        } catch (err) {
-          if (err.code === 'ENOENT') {
-            isUnique = true
-          } else {
-            throw err
-          }
-        }
-      }
+    .then(storage => generateUniqueKey(fs, storage).then(key => [key, storage]))
+    .then(function saveNote ([key, storage]) {
       const noteData = Object.assign({},
         {
           createdAt: new Date(),
@@ -79,9 +76,10 @@ function createNote (storageKey, input) {
           storage: storageKey
         })
 
-      CSON.writeFileSync(path.join(storage.path, 'notes', key + '.cson'), _.omit(noteData, ['key', 'storage']))
-
-      return noteData
+      return fs.writeCSONSync(
+        path.join(storage.path || '', 'notes', key + '.cson'),
+        _.omit(noteData, ['key', 'storage'])
+      ).then(() => noteData)
     })
 }
 

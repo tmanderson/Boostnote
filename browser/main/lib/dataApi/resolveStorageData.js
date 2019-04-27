@@ -1,7 +1,8 @@
 const _ = require('lodash')
 const path = require('path')
-const CSON = require('@rokt33r/season')
 const migrateFromV6Storage = require('./migrateFromV6Storage')
+
+const fileSystem = require('./adapter')
 
 function resolveStorageData (storageCache) {
   const storage = {
@@ -9,33 +10,42 @@ function resolveStorageData (storageCache) {
     name: storageCache.name,
     type: storageCache.type,
     path: storageCache.path,
-    isOpen: storageCache.isOpen
+    isOpen: storageCache.isOpen,
+    settings: storageCache.settings
   }
 
-  const boostnoteJSONPath = path.join(storageCache.path, 'boostnote.json')
-  try {
-    const jsonData = CSON.readFileSync(boostnoteJSONPath)
-    if (!_.isArray(jsonData.folders)) throw new Error('folders should be an array.')
-    storage.folders = jsonData.folders
-    storage.version = jsonData.version
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      console.warn('boostnote.json file doesn\'t exist the given path')
-      CSON.writeFileSync(boostnoteJSONPath, {folders: [], version: '1.0'})
-    } else {
-      console.error(err)
-    }
-    storage.folders = []
-    storage.version = '1.0'
-  }
+  const boostnoteJSONPath = storageCache.path
+    ? path.join(storageCache.path, 'boostnote.json')
+    : 'boostnote.json'
 
-  const version = parseInt(storage.version, 10)
-  if (version >= 1) {
-    return Promise.resolve(storage)
-  }
+  const fs = fileSystem.getStorageAdapter(storage)
 
-  return migrateFromV6Storage(storage.path)
-    .then(() => storage)
+  return fs.readCSONSync(boostnoteJSONPath)
+    .catch(() => {
+      console.log('WHY DID WE FAIL??')
+      return fs.writeCSONSync(boostnoteJSONPath, {folders: [], version: '1.0'})
+    })
+    .then(jsonData => console.log(jsonData) ||
+      !_.isArray(jsonData.folders)
+        ? fs.writeCSONSync(
+            boostnoteJSONPath,
+            Object.assign({}, jsonData, {
+              folders: _.get(jsonData, 'folders', []),
+              version: '1.0'
+            })
+          )
+        : jsonData
+    )
+    .then(jsonData => {
+      Object.assign(storage, jsonData)
+      const version = parseInt(storage.version, 10)
+
+      if (version >= 1) {
+        return Promise.resolve(storage)
+      }
+
+      return migrateFromV6Storage(storage.path).then(() => storage)
+    })
 }
 
 module.exports = resolveStorageData

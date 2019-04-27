@@ -1,8 +1,8 @@
 const _ = require('lodash')
 const path = require('path')
 const resolveStorageData = require('./resolveStorageData')
-const CSON = require('@rokt33r/season')
 const { findStorage } = require('browser/lib/findStorage')
+const fileSystem = require('./adapter')
 
 /**
  * @param {String} storageKey
@@ -24,6 +24,7 @@ const { findStorage } = require('browser/lib/findStorage')
  */
 function updateFolder (storageKey, folderKey, input) {
   let targetStorage
+
   try {
     if (input == null) throw new Error('No input found.')
     if (!_.isString(input.name)) throw new Error('Name must be a string.')
@@ -34,18 +35,22 @@ function updateFolder (storageKey, folderKey, input) {
     return Promise.reject(e)
   }
 
+  const fs = fileSystem.getStorageAdapter(targetStorage)
+
   return resolveStorageData(targetStorage)
     .then(function updateFolder (storage) {
       const targetFolder = _.find(storage.folders, {key: folderKey})
+
       if (targetFolder == null) throw new Error('Target folder doesn\'t exist.')
       targetFolder.name = input.name
       targetFolder.color = input.color
 
-      CSON.writeFileSync(path.join(storage.path, 'boostnote.json'), _.pick(storage, ['folders', 'version']))
-
-      return {
+      return fs.writeCSONSync(
+        path.join(storage.path || '', 'boostnote.json'),
+        _.pick(storage, ['folders', 'version'])
+      ).then(() => ({
         storage
-      }
+      }))
     })
 }
 
