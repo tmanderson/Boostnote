@@ -63,6 +63,7 @@ function addStorage (input) {
       return resolveStorageNotes(storage)
         .then((notes) => {
           let unknownCount = 0
+
           notes.forEach((note) => {
             if (!storage.folders.some((folder) => note.folder === folder.key)) {
               unknownCount++

@@ -186,6 +186,7 @@ class StoragesTab extends React.Component {
         name={`setting-${name}`}
         value={value}
         onChange={(e) => this.handleAddStorageChange(e)}
+        onBlur={(e) => this.handleAddStorageChange(e)}
       />
     )
   }
@@ -242,21 +243,8 @@ class StoragesTab extends React.Component {
     return (
       <div styleName='addStorage'>
         <div styleName='addStorage-header'>{i18n.__('Add Storage')}</div>
-        <div styleName='addStorage-body'>
-          <div styleName='addStorage-body-section'>
-            <div styleName='addStorage-body-section-label'>
-              {i18n.__('Name')}
-            </div>
-            <div styleName='addStorage-body-section-name'>
-              <input styleName='addStorage-body-section-name-input'
-                ref='addStorageName'
-                name='name'
-                value={this.state.newStorage.name}
-                onChange={(e) => this.handleAddStorageChange(e)}
-              />
-            </div>
-          </div>
 
+        <div styleName='addStorage-body'>
           <div styleName='addStorage-body-section'>
             <div styleName='addStorage-body-section-label'>{i18n.__('Type')}</div>
             <div styleName='addStorage-body-section-type'>
@@ -281,7 +269,22 @@ class StoragesTab extends React.Component {
               </div>
             </div>
           </div>
+          <div styleName='addStorage-body-section'>
+            <div styleName='addStorage-body-section-label'>
+              {i18n.__('Name')}
+            </div>
+            <div styleName='addStorage-body-section-name'>
+              <input styleName='addStorage-body-section-name-input'
+                ref='addStorageName'
+                name='name'
+                value={this.state.newStorage.name}
+                onChange={(e) => this.handleAddStorageChange(e)}
+              />
+            </div>
+          </div>
+
           {this.renderStorageSettings(_.get(this.state.newStorage, 'type'))}
+
           <div styleName='addStorage-body-control'>
             <button
               styleName='addStorage-body-control-createButton'

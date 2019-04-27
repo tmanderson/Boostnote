@@ -1,4 +1,4 @@
-const path = require('path')
+const fs = require('fs')
 const sander = require('sander')
 const CSON = require('@rokt33r/season')
 
@@ -29,6 +29,10 @@ function unlinkSync (path) {
   return new Promise((resolve) => resolve(sander.unlinkSync(path)))
 }
 
+function existsSync (path) {
+  return new Promise((resolve) => resolve(fs.existsSync(path)))
+}
+
 module.exports = {
   init: function initializeFileSystem () {
     return {
@@ -37,7 +41,8 @@ module.exports = {
       readdirSync,
       mkdirSync,
       statSync,
-      unlinkSync
+      unlinkSync,
+      existsSync
     }
   },
   label: 'File System',

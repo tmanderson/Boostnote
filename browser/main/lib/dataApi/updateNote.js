@@ -80,7 +80,6 @@ function updateNote (storageKey, noteKey, input) {
   try {
     if (input == null) throw new Error('No input found.')
     input = validateInput(input)
-
     targetStorage = findStorage(storageKey)
   } catch (e) {
     return Promise.reject(e)
@@ -89,52 +88,55 @@ function updateNote (storageKey, noteKey, input) {
   return resolveStorageData(targetStorage)
     .then(function saveNote (storage) {
       const fs = fileSystem.getStorageAdapter(storage)
-      let noteData
       const notePath = path.join(storage.path, 'notes', noteKey + '.cson')
-      try {
-        noteData = fs.readCSONSync(notePath)
-      } catch (err) {
-        console.warn('Failed to find note cson', err)
-        noteData = input.type === 'SNIPPET_NOTE'
-          ? {
-            type: 'SNIPPET_NOTE',
-            description: [],
-            snippets: [{
-              name: '',
-              mode: 'text',
+
+      fs.readCSONSync(notePath)
+        .catch(err => {
+          console.warn('Failed to find note cson', err)
+          const noteData = input.type === 'SNIPPET_NOTE'
+            ? {
+              type: 'SNIPPET_NOTE',
+              description: [],
+              snippets: [{
+                name: '',
+                mode: 'text',
+                content: '',
+                linesHighlighted: []
+              }]
+            }
+            : {
+              type: 'MARKDOWN_NOTE',
               content: '',
               linesHighlighted: []
-            }]
+            }
+          noteData.title = ''
+          if (storage.folders.length === 0) throw new Error('Failed to restore note: No folder exists.')
+
+          noteData.folder = storage.folders[0].key
+          noteData.createdAt = new Date()
+          noteData.updatedAt = new Date()
+          noteData.isStarred = false
+          noteData.isTrashed = false
+          noteData.tags = []
+          noteData.isPinned = false
+          return noteData
+        })
+        .then(noteData => {
+          if (noteData.type === 'SNIPPET_NOTE') {
+            noteData.title
           }
-          : {
-            type: 'MARKDOWN_NOTE',
-            content: '',
-            linesHighlighted: []
-          }
-        noteData.title = ''
-        if (storage.folders.length === 0) throw new Error('Failed to restore note: No folder exists.')
-        noteData.folder = storage.folders[0].key
-        noteData.createdAt = new Date()
-        noteData.updatedAt = new Date()
-        noteData.isStarred = false
-        noteData.isTrashed = false
-        noteData.tags = []
-        noteData.isPinned = false
-      }
 
-      if (noteData.type === 'SNIPPET_NOTE') {
-        noteData.title
-      }
+          const updatedNote = Object.assign(noteData, input, {
+            key: noteKey,
+            updatedAt: new Date(),
+            storage: storageKey
+          })
 
-      Object.assign(noteData, input, {
-        key: noteKey,
-        updatedAt: new Date(),
-        storage: storageKey
-      })
-
-      fs.writeCSONSync(path.join(storage.path, 'notes', noteKey + '.cson'), _.omit(noteData, ['key', 'storage']))
-
-      return noteData
+          return fs.writeCSONSync(
+            path.join(storage.path, 'notes', noteKey + '.cson'),
+            _.omit(updatedNote, ['key', 'storage'])
+          ).then(() => updatedNote)
+        })
     })
 }
 

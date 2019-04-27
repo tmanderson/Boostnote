@@ -66,6 +66,7 @@ export default class CodeEditor extends React.Component {
         storageKey,
         noteKey
       } = this.props
+
       attachmentManagement.deleteAttachmentsNotPresentInNote(
         this.editor.getValue(),
         storageKey,

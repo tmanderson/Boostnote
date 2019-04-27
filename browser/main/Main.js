@@ -302,7 +302,7 @@ class Main extends React.Component {
 
     // the width of the navigation bar when it is folded/collapsed
     const foldedNavigationWidth = 44
-
+    console.log(this.props)
     return (
       <div
         className='Main'

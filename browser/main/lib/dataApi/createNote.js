@@ -37,7 +37,7 @@ function validateInput (input) {
 function generateUniqueKey (fs, storage) {
   const key = keygen(true)
 
-  return fs.statSync(path.join(storage.path || '', 'notes', key + '.cson'))
+  return fs.statSync(path.join(storage.path, 'notes', key + '.cson'))
     .then(() => generateUniqueKey(fs, storage), () => key)
 }
 
@@ -77,7 +77,7 @@ function createNote (storageKey, input) {
         })
 
       return fs.writeCSONSync(
-        path.join(storage.path || '', 'notes', key + '.cson'),
+        path.join(storage.path, 'notes', key + '.cson'),
         _.omit(noteData, ['key', 'storage'])
       ).then(() => noteData)
     })

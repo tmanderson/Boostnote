@@ -27,18 +27,7 @@ module.exports = {
       secretAccessKey: storage.settings.secretAccessKey
     })
 
-    const S3 = new AWS.S3({
-      apiVersion: '2016-03-01'
-    })
-
-    S3.listObjectsV2({
-      Bucket: storage.settings.bucketName
-    }, function (err, data) {
-      if (err) {
-        console.error('S3 credentials incorrect')
-        console.log(err)
-      }
-    })
+    const S3 = new AWS.S3({ apiVersion: '2016-03-01' })
 
     function readCSONSync (path) {
       console.log(`[S3]: Getting data at ${path}`)
@@ -108,7 +97,7 @@ module.exports = {
     }
 
     function unlinkSync (path) {
-      console.log(`Deleting files at ${path}`);
+      console.log(`Deleting files at ${path}`)
 
       return promiseHandler(
         S3.listObjects.bind(S3),
@@ -122,7 +111,7 @@ module.exports = {
           {
             Bucket: storage.settings.bucketName,
             Delete: {
-              Objects: res.Contents.filter(obj => ({ Key: obj.Key }))
+              Objects: res.Contents.map(obj => ({ Key: obj.Key }))
                 .concat([{ Key: path }])
             }
           }
@@ -134,13 +123,39 @@ module.exports = {
       })
     }
 
+    function existsSync (path) {
+      // No path implies the storage itself, in the case of S3, we ensure
+      // the configured bucket exists
+      if (!path) {
+        return promiseHandler(
+          S3.getBucketLocation.bind(S3),
+          {
+            Bucket: storage.settings.bucketName
+          }
+        )
+        .catch(() => false)
+        .then(() => true)
+      }
+
+      return promiseHandler(
+        S3.getObject.bind(S3),
+        {
+          Bucket: storage.settings.bucketName,
+          Key: path
+        }
+      )
+      .catch(() => false) // doesn't exist
+      .then(exists => !!exists)
+    }
+
     return {
       readCSONSync,
       writeCSONSync,
       readdirSync,
       mkdirSync,
       statSync,
-      unlinkSync
+      unlinkSync,
+      existsSync
     }
   },
   label: 'Amazon S3',

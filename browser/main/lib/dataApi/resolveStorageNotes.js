@@ -25,16 +25,18 @@ function resolveStorageNotes (storage) {
             return fs.readCSONSync(path.join(notesDirPath, notePath))
               .then((data) => [notePath, data])
           })
-      ).then(notes =>
-          notes.map(([notePath, data]) => {
-            data.key = path.basename(notePath, '.cson')
-            data.storage = storage.key
-            return data
-          })
-          .filter(function filterOnlyNoteObject (noteObj) {
-            return typeof noteObj === 'object'
-          })
-      )
+      ).then(notes => {
+        const formattedNotes = notes.map(([notePath, data]) => {
+          data.key = path.basename(notePath, '.cson')
+          data.storage = storage.key
+          return data
+        })
+        .filter(function filterOnlyNoteObject (noteObj) {
+          return typeof noteObj === 'object'
+        })
+
+        return formattedNotes
+      })
     )
 }
 

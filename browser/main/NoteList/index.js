@@ -376,16 +376,20 @@ class NoteList extends React.Component {
     const storageKey = params.storageKey
     const folderKey = params.folderKey
     const storage = data.storageMap.get(storageKey)
+
     if (storage === undefined) return []
 
     const folder = _.find(storage.folders, {key: folderKey})
+
     if (folder === undefined) {
       const storageNoteSet = data.storageNoteMap.get(storage.key) || []
       return storageNoteSet.map((uniqueKey) => data.noteMap.get(uniqueKey))
     }
 
     const folderNoteKeyList = data.folderNoteMap.get(`${storage.key}-${folder.key}`) || []
-    return folderNoteKeyList.map((uniqueKey) => data.noteMap.get(uniqueKey))
+    const notesForContext = folderNoteKeyList.map((uniqueKey) => data.noteMap.get(uniqueKey))
+
+    return notesForContext
   }
 
   sortByPin (unorderedNotes) {
@@ -614,20 +618,18 @@ class NoteList extends React.Component {
     }
 
     Promise.all(
-        selectedNotes.map((note) => {
-          note = updateFunc(note)
-          return dataApi
-              .updateNote(note.storage, note.key, note)
+      selectedNotes.map((note) => {
+        note = updateFunc(note)
+        return dataApi.updateNote(note.storage, note.key, note)
+      })
+    ).then((updatedNotes) => {
+      updatedNotes.forEach((note) => {
+        dispatch({
+          type: 'UPDATE_NOTE',
+          note
         })
-    )
-        .then((updatedNotes) => {
-          updatedNotes.forEach((note) => {
-            dispatch({
-              type: 'UPDATE_NOTE',
-              note
-            })
-          })
-        })
+      })
+    })
 
     if (cleanSelection) {
       this.selectNextNote()
@@ -1053,6 +1055,7 @@ class NoteList extends React.Component {
           selectedNoteKeys.includes(uniqueKey) ||
           notes.length === 1 ||
           (autoSelectFirst && index === 0)
+
         const dateDisplay = moment(
           sortBy === 'CREATED_AT'
             ? note.createdAt : note.updatedAt
@@ -1077,7 +1080,7 @@ class NoteList extends React.Component {
             />
           )
         }
-
+        console.log(note)
         return (
           <NoteItemSimple
             isActive={isActive}

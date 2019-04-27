@@ -29,6 +29,7 @@ function data (state = defaultDataMap(), action) {
         if (note === undefined) return true
         const uniqueKey = note.key
         const folderKey = note.storage + '-' + note.folder
+
         state.noteMap.set(uniqueKey, note)
 
         if (note.isStarred) {
@@ -135,6 +136,7 @@ function data (state = defaultDataMap(), action) {
 
           // From folderNoteMap
           state.folderNoteMap = new Map(state.folderNoteMap)
+          if (!originNote.folder) console.log(originNote)
           const originFolderKey = originNote.storage + '-' + originNote.folder
           let originFolderList = state.folderNoteMap.get(originFolderKey)
           originFolderList = new Set(originFolderList)
@@ -203,6 +205,7 @@ function data (state = defaultDataMap(), action) {
           }
 
           // From folderNoteMap
+          if (!targetNote.folder) console.log(targetNote)
           const folderKey = targetNote.storage + '-' + targetNote.folder
           state.folderNoteMap = new Map(state.folderNoteMap)
           let folderSet = state.folderNoteMap.get(folderKey)
@@ -418,6 +421,7 @@ function updateFolderChange (oldNote, note, state, folderKey, uniqueKey) {
     state.folderNoteMap.set(folderKey, folderNoteList)
 
     if (oldNote != null) {
+      if (!oldNote.folder) console.log(oldNote)
       const oldFolderKey = oldNote.storage + '-' + oldNote.folder
       let oldFolderNoteList = state.folderNoteMap.get(oldFolderKey)
       oldFolderNoteList = new Set(oldFolderNoteList)

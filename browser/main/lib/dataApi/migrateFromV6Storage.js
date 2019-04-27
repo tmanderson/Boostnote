@@ -4,8 +4,9 @@ const keygen = require('browser/lib/keygen')
 const _ = require('lodash')
 const CSON = require('@rokt33r/season')
 
-function migrateFromV5Storage (storagePath) {
+function migrateFromV6Storage (storagePath) {
   var boostnoteJSONPath = path.join(storagePath, 'boostnote.json')
+  console.log('MIGRATION FROM v6 STORAGE')
   return Promise.resolve()
     .then(function readBoostnoteJSON () {
       return sander.readFile(boostnoteJSONPath, {
@@ -85,5 +86,5 @@ function migrateFromV5Storage (storagePath) {
     })
 }
 
-module.exports = migrateFromV5Storage
+module.exports = migrateFromV6Storage
 

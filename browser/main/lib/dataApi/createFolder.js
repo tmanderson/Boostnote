@@ -54,7 +54,7 @@ function createFolder (storageKey, input) {
       storage.folders.push(newFolder)
 
       return fs.writeCSONSync(
-        path.join(storage.path || '', 'boostnote.json'),
+        path.join(storage.path, 'boostnote.json'),
         _.pick(storage, ['folders', 'version'])
       ).then(() => ({
         storage

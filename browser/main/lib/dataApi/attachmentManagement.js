@@ -7,6 +7,9 @@ const fse = require('fs-extra')
 const escapeStringRegexp = require('escape-string-regexp')
 const sander = require('sander')
 const url = require('url')
+
+const fileSystem = require('./adapter')
+
 import i18n from 'browser/lib/i18n'
 
 const STORAGE_FOLDER_PLACEHOLDER = ':storage'
@@ -591,35 +594,43 @@ function deleteAttachmentsNotPresentInNote (markdownContent, storageKey, noteKey
   const attachmentFolder = path.join(targetStorage.path, DESTINATION_FOLDER, noteKey)
   const attachmentsInNote = getAttachmentsInMarkdownContent(markdownContent)
   const attachmentsInNoteOnlyFileNames = []
+
+  const fs = fileSystem.getStorageAdapter(targetStorage)
+
   if (attachmentsInNote) {
     for (let i = 0; i < attachmentsInNote.length; i++) {
       attachmentsInNoteOnlyFileNames.push(attachmentsInNote[i].replace(new RegExp(STORAGE_FOLDER_PLACEHOLDER + escapeStringRegexp(path.sep) + noteKey + escapeStringRegexp(path.sep), 'g'), ''))
     }
   }
-  if (fs.existsSync(attachmentFolder)) {
-    fs.readdir(attachmentFolder, (err, files) => {
-      if (err) {
-        console.error('Error reading directory "' + attachmentFolder + '". Error:')
-        console.error(err)
-        return
-      }
-      files.forEach(file => {
-        if (!attachmentsInNoteOnlyFileNames.includes(file)) {
-          const absolutePathOfFile = path.join(targetStorage.path, DESTINATION_FOLDER, noteKey, file)
-          fs.unlink(absolutePathOfFile, (err) => {
-            if (err) {
-              console.error('Could not delete "%s"', absolutePathOfFile)
+
+  fs.existsSync(attachmentFolder)
+    .then(() => {
+      return fs.readdirSync(attachmentFolder)
+        .then(
+          files =>
+            files.forEach(file => {
+              if (!attachmentsInNoteOnlyFileNames.includes(file)) {
+                const absolutePathOfFile = path.join(targetStorage.path, DESTINATION_FOLDER, noteKey, file)
+                fs.unlinkSync(absolutePathOfFile())
+                  .catch(err => {
+                    console.error('Could not delete "%s"', absolutePathOfFile)
+                    console.error(err)
+                    return
+                  })
+                  .then(() =>
+                    console.info('File "' + absolutePathOfFile + '" deleted because it was not included in the content of the note')
+                  )
+              }
+            }),
+            err => {
+              console.error('Error reading directory "' + attachmentFolder + '". Error:')
               console.error(err)
               return
             }
-            console.info('File "' + absolutePathOfFile + '" deleted because it was not included in the content of the note')
-          })
-        }
-      })
+        )
+    }, () => {
+      console.info('Attachment folder ("' + attachmentFolder + '") did not exist..')
     })
-  } else {
-    console.info('Attachment folder ("' + attachmentFolder + '") did not exist..')
-  }
 }
 
 /**

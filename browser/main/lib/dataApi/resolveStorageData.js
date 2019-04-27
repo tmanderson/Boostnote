@@ -18,11 +18,12 @@ function resolveStorageData (storageCache) {
     ? path.join(storageCache.path, 'boostnote.json')
     : 'boostnote.json'
 
+  // TODO: consider returning the adapter as a property on the storage
   const fs = fileSystem.getStorageAdapter(storage)
 
   return fs.readCSONSync(boostnoteJSONPath)
-    .catch(() => {
-      console.log('WHY DID WE FAIL??')
+    .catch(err => {
+      console.error(err)
       return fs.writeCSONSync(boostnoteJSONPath, {folders: [], version: '1.0'})
     })
     .then(jsonData => console.log(jsonData) ||
@@ -37,14 +38,14 @@ function resolveStorageData (storageCache) {
         : jsonData
     )
     .then(jsonData => {
-      Object.assign(storage, jsonData)
-      const version = parseInt(storage.version, 10)
+      const updatedStorage = Object.assign(storage, jsonData)
+      const version = parseInt(updatedStorage.version, 10)
 
       if (version >= 1) {
-        return Promise.resolve(storage)
+        return Promise.resolve(updatedStorage)
       }
 
-      return migrateFromV6Storage(storage.path).then(() => storage)
+      return migrateFromV6Storage(updatedStorage.path).then(() => updatedStorage)
     })
 }
 
