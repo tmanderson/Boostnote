@@ -612,13 +612,13 @@ function deleteAttachmentsNotPresentInNote (markdownContent, storageKey, noteKey
               if (!attachmentsInNoteOnlyFileNames.includes(file)) {
                 const absolutePathOfFile = path.join(targetStorage.path, DESTINATION_FOLDER, noteKey, file)
                 fs.unlinkSync(absolutePathOfFile())
-                  .catch(err => {
-                    console.error('Could not delete "%s"', absolutePathOfFile)
-                    console.error(err)
-                    return
-                  })
-                  .then(() =>
-                    console.info('File "' + absolutePathOfFile + '" deleted because it was not included in the content of the note')
+                  .then(
+                    () => console.info('File "' + absolutePathOfFile + '" deleted because it was not included in the content of the note'),
+                    err => {
+                      console.error('Could not delete "%s"', absolutePathOfFile)
+                      console.error(err)
+                      return
+                    }
                   )
               }
             }),

@@ -3,18 +3,11 @@ const path = require('path')
 const fileSystem = require('./adapter')
 
 function resolveStorageNotes (storage) {
-  const notesDirPath = path.join(storage.path || '', 'notes')
+  const notesDirPath = path.join(storage.path, 'notes')
 
   const fs = fileSystem.getStorageAdapter(storage)
 
   return fs.readdirSync(notesDirPath)
-    .catch(err => {
-      if (err.code === 'ENOENT') {
-        return fs.mkdirSync(notesDirPath).then(() => [])
-      }
-
-      throw new Error('File storage could not be resolved')
-    })
     .then(notePathList =>
       Promise.all(
         notePathList
@@ -25,18 +18,23 @@ function resolveStorageNotes (storage) {
             return fs.readCSONSync(path.join(notesDirPath, notePath))
               .then((data) => [notePath, data])
           })
-      ).then(notes => {
-        const formattedNotes = notes.map(([notePath, data]) => {
-          data.key = path.basename(notePath, '.cson')
-          data.storage = storage.key
-          return data
-        })
-        .filter(function filterOnlyNoteObject (noteObj) {
-          return typeof noteObj === 'object'
-        })
+      ).then(notes =>
+        notes
+          .map(([notePath, data]) => Object.assign(data, {
+            key: path.basename(notePath, '.cson'),
+            storage: storage.key
+          }))
+          .filter(function filterOnlyNoteObject (noteObj) {
+            return typeof noteObj === 'object'
+          })
+        ),
+      err => {
+        if (err.code === 'ENOENT') {
+          return fs.mkdirSync(notesDirPath).then(() => [])
+        }
 
-        return formattedNotes
-      })
+        throw new Error('File storage could not be resolved')
+      }
     )
 }
 

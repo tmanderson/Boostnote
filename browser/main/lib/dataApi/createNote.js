@@ -1,4 +1,3 @@
-const sander = require('sander')
 const resolveStorageData = require('./resolveStorageData')
 const _ = require('lodash')
 const keygen = require('browser/lib/keygen')

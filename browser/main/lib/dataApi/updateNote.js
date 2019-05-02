@@ -77,6 +77,7 @@ function validateInput (input) {
 
 function updateNote (storageKey, noteKey, input) {
   let targetStorage
+
   try {
     if (input == null) throw new Error('No input found.')
     input = validateInput(input)
@@ -90,7 +91,7 @@ function updateNote (storageKey, noteKey, input) {
       const fs = fileSystem.getStorageAdapter(storage)
       const notePath = path.join(storage.path, 'notes', noteKey + '.cson')
 
-      fs.readCSONSync(notePath)
+      return fs.readCSONSync(notePath)
         .catch(err => {
           console.warn('Failed to find note cson', err)
           const noteData = input.type === 'SNIPPET_NOTE'
@@ -110,7 +111,10 @@ function updateNote (storageKey, noteKey, input) {
               linesHighlighted: []
             }
           noteData.title = ''
-          if (storage.folders.length === 0) throw new Error('Failed to restore note: No folder exists.')
+
+          if (storage.folders.length === 0) {
+            throw new Error('Failed to restore note: No folder exists.')
+          }
 
           noteData.folder = storage.folders[0].key
           noteData.createdAt = new Date()
@@ -132,10 +136,12 @@ function updateNote (storageKey, noteKey, input) {
             storage: storageKey
           })
 
-          return fs.writeCSONSync(
+          fs.writeCSONSync(
             path.join(storage.path, 'notes', noteKey + '.cson'),
             _.omit(updatedNote, ['key', 'storage'])
-          ).then(() => updatedNote)
+          )
+
+          return updatedNote
         })
     })
 }
